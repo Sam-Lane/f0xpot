@@ -19,6 +19,7 @@ const (
 	sshPort  = ":22" //might want to change this as your real SSH daemon is using this port
 	influxDB = "http://localhost:8086/"
 	database = "honeypot"
+	table    = "attack"
 )
 
 var (
@@ -66,7 +67,7 @@ func ConnectionHandler(ctx ssh.Context, pass string) bool {
 		log.Println(err)
 	}
 	log.Printf("%s - %s:%s - %s", ip, ctx.User(), pass, data.Country)
-	writeInflux(ip, ctx.User(), pass, data.Country, data.City) // time already handled
+	writeInflux(ip, ctx.User(), pass, data.Country, data.City, data.Lat, data.Lon) // time already handled
 	return false
 }
 
@@ -102,16 +103,19 @@ func requestLocation(ipAddress string) (gipresult geoIP, err error) {
 	return result, nil
 }
 
-func writeInflux(ip string, username string, password string, country string, city string) {
+func writeInflux(ip string, username string, password string, country string, city string, lat float64, long float64) {
 	file, err := os.OpenFile("log.influx", os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
 	checkError(err)
 
-	dataPoint := fmt.Sprintf("IP=%q,Username=%q,Password=%q,Country=%q,City=%q %d\n",
+	dataPoint := fmt.Sprintf("%s IP=%q,Username=%q,Password=%q,Country=%q,City=%q,Latitude=%f,Longitude=%f %d\n",
+		table,
 		ip,
 		username,
 		password,
 		country,
 		city,
+		lat,
+		long,
 		time.Now().UnixNano())
 
 	_, err = file.WriteString(dataPoint)
